@@ -47,13 +47,24 @@ try:
         if os.path.exists(path):
             print(f"Found model at: {path}")
             try:
-                # Create a simple model architecture
+                # Create a model architecture with 10 layers to match the saved weights
                 model = tf.keras.Sequential([
-                    tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(224, 224, 3)),
+                    # Input layer
+                    tf.keras.layers.Input(shape=(224, 224, 3)),
+                    
+                    # First Conv block
+                    tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
                     tf.keras.layers.MaxPooling2D((2, 2)),
+                    
+                    # Second Conv block
                     tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
                     tf.keras.layers.MaxPooling2D((2, 2)),
+                    
+                    # Third Conv block
                     tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+                    tf.keras.layers.MaxPooling2D((2, 2)),
+                    
+                    # Flatten and Dense layers
                     tf.keras.layers.Flatten(),
                     tf.keras.layers.Dense(64, activation='relu'),
                     tf.keras.layers.Dense(4, activation='softmax')
