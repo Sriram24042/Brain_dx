@@ -11,23 +11,17 @@ import shutil
 import gdown
 import requests
 from tqdm import tqdm
+import uvicorn
 
 app = FastAPI(title="BrainDx API")
 
-# Configure CORS
-allowed_origins = [
-    "http://localhost:5173",  # Local development
-    "https://brain-dx-1.vercel.app",  # Your Vercel domain
-    "https://brain-dx.vercel.app",    # Alternative Vercel domain
-    "https://braindx.vercel.app",     # Another alternative
-]
-
+# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=["*"],  # Allows all origins
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 # Model configuration
@@ -168,5 +162,5 @@ async def health_check():
     return {"status": "healthy", "model_loaded": model is not None}
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port) 
