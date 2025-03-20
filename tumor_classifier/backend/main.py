@@ -14,8 +14,9 @@ app = FastAPI(title="BrainDx API")
 # Configure CORS
 allowed_origins = [
     "http://localhost:5173",  # Local development
-    "https://brain-dx.vercel.app",  # Your Vercel domain
-    "https://braindx.vercel.app",   # Alternative Vercel domain
+    "https://brain-dx-1.vercel.app",  # Your Vercel domain
+    "https://brain-dx.vercel.app",    # Alternative Vercel domain
+    "https://braindx.vercel.app",     # Another alternative
 ]
 
 app.add_middleware(
@@ -28,10 +29,36 @@ app.add_middleware(
 
 # Load the model
 try:
-    model = tf.keras.models.load_model("model_weights.h5")
-    CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
+    print("Attempting to load model...")
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Directory contents: {os.listdir('.')}")
+    
+    # Try different possible paths
+    model_paths = [
+        "model_weights.h5",
+        "tumor_classifier/backend/model_weights.h5",
+        "/app/model_weights.h5",
+        "/app/tumor_classifier/backend/model_weights.h5"
+    ]
+    
+    model_loaded = False
+    for path in model_paths:
+        print(f"Checking path: {path}")
+        if os.path.exists(path):
+            print(f"Found model at: {path}")
+            model = tf.keras.models.load_model(path)
+            CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
+            print("Model loaded successfully!")
+            model_loaded = True
+            break
+    
+    if not model_loaded:
+        raise FileNotFoundError("Model file not found in any of the expected locations")
+        
 except Exception as e:
-    print(f"Error loading model: {e}")
+    print(f"Error loading model: {str(e)}")
+    print(f"Error type: {type(e)}")
+    print(f"TensorFlow version: {tf.__version__}")
     model = None
 
 def preprocess_image(image):
