@@ -47,85 +47,29 @@ try:
         if os.path.exists(path):
             print(f"Found model at: {path}")
             try:
-                # First attempt: Try loading with custom_objects
-                custom_objects = {
-                    'InputLayer': tf.keras.layers.InputLayer
-                }
-                model = tf.keras.models.load_model(path, custom_objects=custom_objects)
-            except Exception as e1:
-                print(f"First attempt failed: {str(e1)}")
-                try:
-                    # Second attempt: Try loading with compile=False
-                    model = tf.keras.models.load_model(path, compile=False)
-                except Exception as e2:
-                    print(f"Second attempt failed: {str(e2)}")
-                    try:
-                        # Third attempt: Try loading weights only with the correct architecture
-                        # Define the Input
-                        input_tensor = tf.keras.Input(shape=(224, 224, 3))
-                        
-                        # MobileNetV2 branch
-                        mobile_net = tf.keras.applications.MobileNetV2(
-                            input_shape=(224, 224, 3),
-                            include_top=False,
-                            weights='imagenet'
-                        )(input_tensor)
-                        mobile_net = tf.keras.layers.GlobalAveragePooling2D()(mobile_net)
-                        
-                        # EfficientNetV2 branch
-                        efficient_net = tf.keras.applications.EfficientNetV2B0(
-                            input_shape=(224, 224, 3),
-                            include_top=False,
-                            weights='imagenet'
-                        )(input_tensor)
-                        efficient_net = tf.keras.layers.GlobalAveragePooling2D()(efficient_net)
-                        
-                        # 3D CNN branch
-                        reshaped_input = tf.keras.layers.Reshape((224, 224, 3, 1))(input_tensor)
-                        conv3d_net = tf.keras.layers.Conv3D(64, (3, 3, 3), activation='relu', padding='same')(reshaped_input)
-                        conv3d_net = tf.keras.layers.GlobalAveragePooling3D()(conv3d_net)
-                        
-                        # Transformer branch
-                        transformer_input = tf.keras.layers.Flatten()(input_tensor)
-                        transformer_input = tf.keras.layers.Dense(128)(transformer_input)
-                        transformer_input = tf.keras.layers.Reshape((8, 16))(transformer_input)
-                        
-                        # Transformer block
-                        attn_output = tf.keras.layers.MultiHeadAttention(num_heads=4, key_dim=64)(transformer_input, transformer_input)
-                        attn_output = tf.keras.layers.Add()([transformer_input, attn_output])
-                        attn_output = tf.keras.layers.LayerNormalization(epsilon=1e-6)(attn_output)
-                        
-                        ffn_output = tf.keras.Sequential([
-                            tf.keras.layers.Dense(128, activation='relu'),
-                            tf.keras.layers.Dense(transformer_input.shape[-1])
-                        ])(attn_output)
-                        
-                        ffn_output = tf.keras.layers.Add()([attn_output, ffn_output])
-                        transformer_output = tf.keras.layers.LayerNormalization(epsilon=1e-6)(ffn_output)
-                        transformer_output = tf.keras.layers.GlobalAveragePooling1D()(transformer_output)
-                        
-                        # Combine all branches
-                        combined = tf.keras.layers.Concatenate()([mobile_net, efficient_net, conv3d_net, transformer_output])
-                        
-                        # Classification layers
-                        x = tf.keras.layers.Dropout(0.3)(combined)
-                        x = tf.keras.layers.Dense(512, activation='relu')(x)
-                        x = tf.keras.layers.Dropout(0.3)(x)
-                        output = tf.keras.layers.Dense(4, activation='softmax')(x)
-                        
-                        # Create the model
-                        model = tf.keras.Model(inputs=input_tensor, outputs=output)
-                        
-                        # Load weights
-                        model.load_weights(path)
-                    except Exception as e3:
-                        print(f"Third attempt failed: {str(e3)}")
-                        raise Exception("All model loading attempts failed")
-            
-            CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
-            print("Model loaded successfully!")
-            model_loaded = True
-            break
+                # Create a simple model architecture
+                model = tf.keras.Sequential([
+                    tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(224, 224, 3)),
+                    tf.keras.layers.MaxPooling2D((2, 2)),
+                    tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+                    tf.keras.layers.MaxPooling2D((2, 2)),
+                    tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+                    tf.keras.layers.Flatten(),
+                    tf.keras.layers.Dense(64, activation='relu'),
+                    tf.keras.layers.Dense(4, activation='softmax')
+                ])
+                
+                # Load the weights
+                model.load_weights(path)
+                CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
+                print("Model loaded successfully!")
+                model_loaded = True
+                break
+            except Exception as e:
+                print(f"Error loading model: {str(e)}")
+                print(f"Error type: {type(e)}")
+                print(f"TensorFlow version: {tf.__version__}")
+                raise Exception("Failed to load model weights")
     
     if not model_loaded:
         raise FileNotFoundError("Model file not found in any of the expected locations")
