@@ -28,7 +28,7 @@ app.add_middleware(
 # Model configuration
 MODEL_PATH = "model_weights.h5"
 GOOGLE_DRIVE_ID = "1HVVWWxcDgCWjvZDXoNG7s0E8PsTyE8g_"
-GOOGLE_DRIVE_URL = f"https://drive.google.com/uc?export=download&id={GOOGLE_DRIVE_ID}"
+GOOGLE_DRIVE_URL = f"https://drive.google.com/uc?id={GOOGLE_DRIVE_ID}"
 
 def verify_model_file(file_path):
     """Verify that the model file is valid."""
@@ -57,85 +57,58 @@ def verify_model_file(file_path):
         return False
 
 def download_file_from_google_drive(file_id, destination):
-    """Download a file from Google Drive using direct download URL."""
+    """Download a file from Google Drive using gdown."""
     print(f"Attempting to download model from Google Drive (ID: {file_id})...")
     
-    # Create direct download URL with export parameter
-    url = f"https://drive.google.com/uc?export=download&id={file_id}"
-    
     try:
-        # First request to get the cookie
-        session = requests.Session()
-        response = session.get(url)
+        # Use gdown to download the file
+        url = f"https://drive.google.com/uc?id={file_id}"
+        print(f"Download URL: {url}")
         
-        # Check if we got a sign-in page
-        if "Sign in" in response.text:
-            print("Error: Google Drive file requires sign-in. Please make the file publicly accessible.")
-            return False
+        # Download with gdown
+        success = gdown.download(url, destination, quiet=False, fuzzy=True)
+        
+        if not success:
+            print("Failed to download with gdown, trying alternative method...")
             
-        # Get the token from the cookie
-        token = None
-        for key, value in response.cookies.items():
-            if key.startswith('download_warning'):
-                token = value
-                break
-        
-        # If we got a token, add it to the URL
-        if token:
-            url = f"{url}&confirm={token}"
-        
-        # Download the file
-        response = session.get(url, stream=True)
-        
-        # Check if we got an error response
-        if response.status_code != 200:
-            print(f"Error: Received status code {response.status_code} from Google Drive")
-            print(f"Response content: {response.text[:500]}...")  # Print first 500 chars of response
-            return False
+            # Alternative method using direct download
+            url = f"https://drive.google.com/uc?export=download&id={file_id}"
+            response = requests.get(url, stream=True)
             
-        total_size = int(response.headers.get('content-length', 0))
-        
-        if total_size == 0:
-            print("Error: File size is 0 bytes. The file might not be accessible.")
-            return False
+            if response.status_code != 200:
+                print(f"Error: Received status code {response.status_code}")
+                return False
+                
+            total_size = int(response.headers.get('content-length', 0))
+            print(f"Total file size: {total_size / (1024*1024):.2f} MB")
             
-        print(f"Total file size: {total_size / (1024*1024):.2f} MB")
-        
-        # Download to a temporary file first
-        temp_path = destination + ".tmp"
-        
-        with open(temp_path, 'wb') as f, tqdm(
-            desc="Downloading",
-            total=total_size,
-            unit='iB',
-            unit_scale=True,
-            unit_divisor=1024,
-        ) as pbar:
-            for data in response.iter_content(chunk_size=1024):
-                size = f.write(data)
-                pbar.update(size)
+            with open(destination, 'wb') as f, tqdm(
+                desc="Downloading",
+                total=total_size,
+                unit='iB',
+                unit_scale=True,
+                unit_divisor=1024,
+            ) as pbar:
+                for data in response.iter_content(chunk_size=1024):
+                    size = f.write(data)
+                    pbar.update(size)
         
         print(f"Download completed. Verifying file...")
         
         # Verify the downloaded file
-        if verify_model_file(temp_path):
-            # If verification successful, move temp file to final location
-            if os.path.exists(destination):
-                os.remove(destination)
-            os.rename(temp_path, destination)
-            print(f"File verified and moved to: {destination}")
+        if verify_model_file(destination):
+            print(f"File verified and saved to: {destination}")
             return True
         else:
-            # If verification failed, remove temp file
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
             print("File verification failed. Download was unsuccessful.")
+            if os.path.exists(destination):
+                os.remove(destination)
             return False
             
     except Exception as e:
         print(f"Error during download: {str(e)}")
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        if os.path.exists(destination):
+            os.remove(destination)
         return False
 
 # Load model at startup
