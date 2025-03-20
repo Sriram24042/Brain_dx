@@ -8,6 +8,7 @@ import io
 import os
 import tempfile
 import shutil
+import gdown
 
 app = FastAPI(title="BrainDx API")
 
@@ -33,60 +34,47 @@ try:
     print(f"Current working directory: {os.getcwd()}")
     print(f"Directory contents: {os.listdir('.')}")
     
-    # Try different possible paths
-    model_paths = [
-        "model_weights.h5",
-        "tumor_classifier/backend/model_weights.h5",
-        "/app/model_weights.h5",
-        "/app/tumor_classifier/backend/model_weights.h5"
-    ]
+    # Google Drive file ID from your link
+    file_id = "1YAr1sX2D92BZ41DFuiUgC8p4opsSIWNw"
+    output_path = "model_weights.h5"
     
-    model_loaded = False
-    for path in model_paths:
-        print(f"Checking path: {path}")
-        if os.path.exists(path):
-            print(f"Found model at: {path}")
-            try:
-                # Try loading the model directly with custom_objects
-                custom_objects = {
-                    'InputLayer': tf.keras.layers.InputLayer,
-                    'Conv2D': tf.keras.layers.Conv2D,
-                    'MaxPooling2D': tf.keras.layers.MaxPooling2D,
-                    'Flatten': tf.keras.layers.Flatten,
-                    'Dense': tf.keras.layers.Dense,
-                    'Dropout': tf.keras.layers.Dropout,
-                    'GlobalAveragePooling2D': tf.keras.layers.GlobalAveragePooling2D,
-                    'GlobalAveragePooling3D': tf.keras.layers.GlobalAveragePooling3D,
-                    'Concatenate': tf.keras.layers.Concatenate,
-                    'MultiHeadAttention': tf.keras.layers.MultiHeadAttention,
-                    'LayerNormalization': tf.keras.layers.LayerNormalization,
-                    'Add': tf.keras.layers.Add,
-                    'Reshape': tf.keras.layers.Reshape,
-                    'Conv3D': tf.keras.layers.Conv3D
-                }
-                
-                # Try loading with compile=False first
-                model = tf.keras.models.load_model(path, custom_objects=custom_objects, compile=False)
-                CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
-                print("Model loaded successfully!")
-                model_loaded = True
-                break
-            except Exception as e:
-                print(f"Error loading model: {str(e)}")
-                print(f"Error type: {type(e)}")
-                print(f"TensorFlow version: {tf.__version__}")
-                print(f"Model path: {path}")
-                print(f"Model file size: {os.path.getsize(path)} bytes")
-                raise Exception("Failed to load model weights")
+    # Download the model if it doesn't exist
+    if not os.path.exists(output_path):
+        print("Downloading model from Google Drive...")
+        url = f"https://drive.google.com/uc?id={file_id}"
+        gdown.download(url, output_path, quiet=False)
+        print("Model downloaded successfully!")
     
-    if not model_loaded:
-        raise FileNotFoundError("Model file not found in any of the expected locations")
-        
+    # Try loading the model
+    custom_objects = {
+        'InputLayer': tf.keras.layers.InputLayer,
+        'Conv2D': tf.keras.layers.Conv2D,
+        'MaxPooling2D': tf.keras.layers.MaxPooling2D,
+        'Flatten': tf.keras.layers.Flatten,
+        'Dense': tf.keras.layers.Dense,
+        'Dropout': tf.keras.layers.Dropout,
+        'GlobalAveragePooling2D': tf.keras.layers.GlobalAveragePooling2D,
+        'GlobalAveragePooling3D': tf.keras.layers.GlobalAveragePooling3D,
+        'Concatenate': tf.keras.layers.Concatenate,
+        'MultiHeadAttention': tf.keras.layers.MultiHeadAttention,
+        'LayerNormalization': tf.keras.layers.LayerNormalization,
+        'Add': tf.keras.layers.Add,
+        'Reshape': tf.keras.layers.Reshape,
+        'Conv3D': tf.keras.layers.Conv3D
+    }
+    
+    model = tf.keras.models.load_model(output_path, custom_objects=custom_objects, compile=False)
+    CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
+    print("Model loaded successfully!")
+    
 except Exception as e:
     print(f"Error loading model: {str(e)}")
     print(f"Error type: {type(e)}")
     print(f"TensorFlow version: {tf.__version__}")
-    model = None
+    print(f"Model path: {output_path}")
+    if os.path.exists(output_path):
+        print(f"Model file size: {os.path.getsize(output_path)} bytes")
+    raise Exception("Failed to load model weights")
 
 def preprocess_image(image):
     # Convert image to RGB mode
