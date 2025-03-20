@@ -60,38 +60,67 @@ try:
                 except Exception as e2:
                     print(f"Second attempt failed: {str(e2)}")
                     try:
-                        # Third attempt: Try loading weights only
-                        # Create a simpler model architecture that matches the original
-                        model = tf.keras.Sequential([
-                            tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(224, 224, 3)),
-                            tf.keras.layers.MaxPooling2D((2, 2)),
-                            tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-                            tf.keras.layers.MaxPooling2D((2, 2)),
-                            tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-                            tf.keras.layers.Flatten(),
-                            tf.keras.layers.Dense(64, activation='relu'),
-                            tf.keras.layers.Dense(4, activation='softmax')
-                        ])
+                        # Third attempt: Try loading weights only with the correct architecture
+                        # Define the Input
+                        input_tensor = tf.keras.Input(shape=(224, 224, 3))
+                        
+                        # MobileNetV2 branch
+                        mobile_net = tf.keras.applications.MobileNetV2(
+                            input_shape=(224, 224, 3),
+                            include_top=False,
+                            weights='imagenet'
+                        )(input_tensor)
+                        mobile_net = tf.keras.layers.GlobalAveragePooling2D()(mobile_net)
+                        
+                        # EfficientNetV2 branch
+                        efficient_net = tf.keras.applications.EfficientNetV2B0(
+                            input_shape=(224, 224, 3),
+                            include_top=False,
+                            weights='imagenet'
+                        )(input_tensor)
+                        efficient_net = tf.keras.layers.GlobalAveragePooling2D()(efficient_net)
+                        
+                        # 3D CNN branch
+                        reshaped_input = tf.keras.layers.Reshape((224, 224, 3, 1))(input_tensor)
+                        conv3d_net = tf.keras.layers.Conv3D(64, (3, 3, 3), activation='relu', padding='same')(reshaped_input)
+                        conv3d_net = tf.keras.layers.GlobalAveragePooling3D()(conv3d_net)
+                        
+                        # Transformer branch
+                        transformer_input = tf.keras.layers.Flatten()(input_tensor)
+                        transformer_input = tf.keras.layers.Dense(128)(transformer_input)
+                        transformer_input = tf.keras.layers.Reshape((8, 16))(transformer_input)
+                        
+                        # Transformer block
+                        attn_output = tf.keras.layers.MultiHeadAttention(num_heads=4, key_dim=64)(transformer_input, transformer_input)
+                        attn_output = tf.keras.layers.Add()([transformer_input, attn_output])
+                        attn_output = tf.keras.layers.LayerNormalization(epsilon=1e-6)(attn_output)
+                        
+                        ffn_output = tf.keras.Sequential([
+                            tf.keras.layers.Dense(128, activation='relu'),
+                            tf.keras.layers.Dense(transformer_input.shape[-1])
+                        ])(attn_output)
+                        
+                        ffn_output = tf.keras.layers.Add()([attn_output, ffn_output])
+                        transformer_output = tf.keras.layers.LayerNormalization(epsilon=1e-6)(ffn_output)
+                        transformer_output = tf.keras.layers.GlobalAveragePooling1D()(transformer_output)
+                        
+                        # Combine all branches
+                        combined = tf.keras.layers.Concatenate()([mobile_net, efficient_net, conv3d_net, transformer_output])
+                        
+                        # Classification layers
+                        x = tf.keras.layers.Dropout(0.3)(combined)
+                        x = tf.keras.layers.Dense(512, activation='relu')(x)
+                        x = tf.keras.layers.Dropout(0.3)(x)
+                        output = tf.keras.layers.Dense(4, activation='softmax')(x)
+                        
+                        # Create the model
+                        model = tf.keras.Model(inputs=input_tensor, outputs=output)
+                        
+                        # Load weights
                         model.load_weights(path)
                     except Exception as e3:
                         print(f"Third attempt failed: {str(e3)}")
-                        try:
-                            # Fourth attempt: Try loading with a different model architecture
-                            model = tf.keras.Sequential([
-                                tf.keras.layers.Conv2D(16, (3, 3), activation='relu', input_shape=(224, 224, 3)),
-                                tf.keras.layers.MaxPooling2D((2, 2)),
-                                tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
-                                tf.keras.layers.MaxPooling2D((2, 2)),
-                                tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
-                                tf.keras.layers.MaxPooling2D((2, 2)),
-                                tf.keras.layers.Flatten(),
-                                tf.keras.layers.Dense(32, activation='relu'),
-                                tf.keras.layers.Dense(4, activation='softmax')
-                            ])
-                            model.load_weights(path)
-                        except Exception as e4:
-                            print(f"Fourth attempt failed: {str(e4)}")
-                            raise Exception("All model loading attempts failed")
+                        raise Exception("All model loading attempts failed")
             
             CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
             print("Model loaded successfully!")
