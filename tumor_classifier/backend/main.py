@@ -9,6 +9,8 @@ import os
 import tempfile
 import shutil
 import gdown
+import requests
+from tqdm import tqdm
 
 app = FastAPI(title="BrainDx API")
 
@@ -28,42 +30,89 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load the model
+# Model configuration
+MODEL_PATH = "model_weights.h5"
+GOOGLE_DRIVE_ID = "1YAr1sX2D92BZ41DFuiUgC8p4opsSIWNw"
+GOOGLE_DRIVE_URL = f"https://drive.google.com/uc?id={GOOGLE_DRIVE_ID}"
+
+def download_file_from_google_drive(file_id, destination):
+    """Download a file from Google Drive using direct download URL."""
+    print(f"Attempting to download model from Google Drive (ID: {file_id})...")
+    
+    # Create direct download URL
+    url = f"https://drive.google.com/uc?export=download&id={file_id}"
+    
+    # First request to get the cookie
+    session = requests.Session()
+    response = session.get(url)
+    
+    # Get the token from the cookie
+    token = None
+    for key, value in response.cookies.items():
+        if key.startswith('download_warning'):
+            token = value
+            break
+    
+    # If we got a token, add it to the URL
+    if token:
+        url = f"{url}&confirm={token}"
+    
+    # Download the file
+    response = session.get(url, stream=True)
+    total_size = int(response.headers.get('content-length', 0))
+    
+    print(f"Total file size: {total_size / (1024*1024):.2f} MB")
+    
+    with open(destination, 'wb') as f, tqdm(
+        desc="Downloading",
+        total=total_size,
+        unit='iB',
+        unit_scale=True,
+        unit_divisor=1024,
+    ) as pbar:
+        for data in response.iter_content(chunk_size=1024):
+            size = f.write(data)
+            pbar.update(size)
+    
+    print(f"Download completed. File saved to: {destination}")
+    return True
+
+# Load model at startup
+print("Attempting to load model...")
+print(f"Current working directory: {os.getcwd()}")
+print(f"Directory contents: {os.listdir('.')}")
+
 try:
-    print("Attempting to load model...")
-    print(f"Current working directory: {os.getcwd()}")
-    print(f"Directory contents: {os.listdir('.')}")
+    if not os.path.exists(MODEL_PATH):
+        print("Model file not found. Downloading from Google Drive...")
+        if download_file_from_google_drive(GOOGLE_DRIVE_ID, MODEL_PATH):
+            print("Model downloaded successfully")
+        else:
+            raise Exception("Failed to download model")
     
-    # Google Drive file ID from your link
-    file_id = "1YAr1sX2D92BZ41DFuiUgC8p4opsSIWNw"
-    output_path = "model_weights.h5"
+    print(f"TensorFlow version: {tf.__version__}")
+    print(f"Model path: {MODEL_PATH}")
+    print(f"File exists: {os.path.exists(MODEL_PATH)}")
+    if os.path.exists(MODEL_PATH):
+        print(f"File size: {os.path.getsize(MODEL_PATH) / (1024*1024):.2f} MB")
     
-    # Download the model if it doesn't exist
-    if not os.path.exists(output_path):
-        print("Downloading model from Google Drive...")
-        url = f"https://drive.google.com/uc?id={file_id}"
-        gdown.download(url, output_path, quiet=False)
-        print("Model downloaded successfully!")
-    
-    # Try loading the model
-    custom_objects = {
-        'InputLayer': tf.keras.layers.InputLayer,
-        'Conv2D': tf.keras.layers.Conv2D,
-        'MaxPooling2D': tf.keras.layers.MaxPooling2D,
-        'Flatten': tf.keras.layers.Flatten,
-        'Dense': tf.keras.layers.Dense,
-        'Dropout': tf.keras.layers.Dropout,
-        'GlobalAveragePooling2D': tf.keras.layers.GlobalAveragePooling2D,
-        'GlobalAveragePooling3D': tf.keras.layers.GlobalAveragePooling3D,
-        'Concatenate': tf.keras.layers.Concatenate,
-        'MultiHeadAttention': tf.keras.layers.MultiHeadAttention,
-        'LayerNormalization': tf.keras.layers.LayerNormalization,
-        'Add': tf.keras.layers.Add,
-        'Reshape': tf.keras.layers.Reshape,
-        'Conv3D': tf.keras.layers.Conv3D
-    }
-    
-    model = tf.keras.models.load_model(output_path, custom_objects=custom_objects, compile=False)
+    # Load the model with custom objects
+    model = tf.keras.models.load_model(MODEL_PATH, 
+        custom_objects={
+            'Dense': tf.keras.layers.Dense,
+            'Conv2D': tf.keras.layers.Conv2D,
+            'MaxPooling2D': tf.keras.layers.MaxPooling2D,
+            'Flatten': tf.keras.layers.Flatten,
+            'Dropout': tf.keras.layers.Dropout,
+            'InputLayer': tf.keras.layers.InputLayer,
+            'Input': tf.keras.layers.Input,
+            'Model': tf.keras.Model,
+            'Sequential': tf.keras.Sequential,
+            'ReLU': tf.keras.layers.ReLU,
+            'BatchNormalization': tf.keras.layers.BatchNormalization
+        },
+        compile=False
+    )
     CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
     print("Model loaded successfully!")
     
@@ -71,9 +120,9 @@ except Exception as e:
     print(f"Error loading model: {str(e)}")
     print(f"Error type: {type(e)}")
     print(f"TensorFlow version: {tf.__version__}")
-    print(f"Model path: {output_path}")
-    if os.path.exists(output_path):
-        print(f"Model file size: {os.path.getsize(output_path)} bytes")
+    print(f"Model path: {MODEL_PATH}")
+    if os.path.exists(MODEL_PATH):
+        print(f"Model file size: {os.path.getsize(MODEL_PATH)} bytes")
     raise Exception("Failed to load model weights")
 
 def preprocess_image(image):
