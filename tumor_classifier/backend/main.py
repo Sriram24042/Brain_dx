@@ -61,27 +61,57 @@ def download_file_from_google_drive(file_id, destination):
     print(f"Attempting to download model from Google Drive (ID: {file_id})...")
     
     try:
-        # Use gdown to download the file
+        # First try with gdown
         url = f"https://drive.google.com/uc?id={file_id}"
-        print(f"Download URL: {url}")
+        print(f"Attempting download with gdown...")
         
-        # Download with gdown
-        success = gdown.download(url, destination, quiet=False, fuzzy=True)
+        # Use gdown with specific options for large files
+        success = gdown.download(
+            url=url,
+            output=destination,
+            quiet=False,
+            fuzzy=True,
+            use_cookies=False,
+            verify=False
+        )
         
         if not success:
             print("Failed to download with gdown, trying alternative method...")
             
-            # Alternative method using direct download
+            # Alternative method using direct download with cookies
+            session = requests.Session()
             url = f"https://drive.google.com/uc?export=download&id={file_id}"
-            response = requests.get(url, stream=True)
+            
+            # First request to get the cookie
+            response = session.get(url)
+            
+            # Get the token from the cookie
+            token = None
+            for key, value in response.cookies.items():
+                if key.startswith('download_warning'):
+                    token = value
+                    break
+            
+            # If we got a token, add it to the URL
+            if token:
+                url = f"{url}&confirm={token}"
+            
+            # Download the file
+            response = session.get(url, stream=True)
             
             if response.status_code != 200:
                 print(f"Error: Received status code {response.status_code}")
                 return False
-                
+            
+            # Get file size from headers
             total_size = int(response.headers.get('content-length', 0))
+            if total_size == 0:
+                print("Error: Could not determine file size")
+                return False
+                
             print(f"Total file size: {total_size / (1024*1024):.2f} MB")
             
+            # Download with progress bar
             with open(destination, 'wb') as f, tqdm(
                 desc="Downloading",
                 total=total_size,
@@ -89,7 +119,7 @@ def download_file_from_google_drive(file_id, destination):
                 unit_scale=True,
                 unit_divisor=1024,
             ) as pbar:
-                for data in response.iter_content(chunk_size=1024):
+                for data in response.iter_content(chunk_size=8192):  # Increased chunk size
                     size = f.write(data)
                     pbar.update(size)
         
