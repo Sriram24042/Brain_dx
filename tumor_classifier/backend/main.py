@@ -46,7 +46,35 @@ try:
         print(f"Checking path: {path}")
         if os.path.exists(path):
             print(f"Found model at: {path}")
-            model = tf.keras.models.load_model(path)
+            try:
+                # First attempt: Try loading with custom_objects
+                custom_objects = {
+                    'InputLayer': tf.keras.layers.InputLayer
+                }
+                model = tf.keras.models.load_model(path, custom_objects=custom_objects)
+            except Exception as e1:
+                print(f"First attempt failed: {str(e1)}")
+                try:
+                    # Second attempt: Try loading with compile=False
+                    model = tf.keras.models.load_model(path, compile=False)
+                except Exception as e2:
+                    print(f"Second attempt failed: {str(e2)}")
+                    try:
+                        # Third attempt: Try loading weights only
+                        base_model = tf.keras.applications.MobileNetV2(
+                            input_shape=(224, 224, 3),
+                            include_top=False,
+                            weights='imagenet'
+                        )
+                        x = base_model.output
+                        x = tf.keras.layers.GlobalAveragePooling2D()(x)
+                        x = tf.keras.layers.Dense(4, activation='softmax')(x)
+                        model = tf.keras.Model(inputs=base_model.input, outputs=x)
+                        model.load_weights(path)
+                    except Exception as e3:
+                        print(f"Third attempt failed: {str(e3)}")
+                        raise Exception("All model loading attempts failed")
+            
             CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
             print("Model loaded successfully!")
             model_loaded = True
