@@ -61,19 +61,37 @@ try:
                     print(f"Second attempt failed: {str(e2)}")
                     try:
                         # Third attempt: Try loading weights only
-                        base_model = tf.keras.applications.MobileNetV2(
-                            input_shape=(224, 224, 3),
-                            include_top=False,
-                            weights='imagenet'
-                        )
-                        x = base_model.output
-                        x = tf.keras.layers.GlobalAveragePooling2D()(x)
-                        x = tf.keras.layers.Dense(4, activation='softmax')(x)
-                        model = tf.keras.Model(inputs=base_model.input, outputs=x)
+                        # Create a simpler model architecture that matches the original
+                        model = tf.keras.Sequential([
+                            tf.keras.layers.Conv2D(32, (3, 3), activation='relu', input_shape=(224, 224, 3)),
+                            tf.keras.layers.MaxPooling2D((2, 2)),
+                            tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+                            tf.keras.layers.MaxPooling2D((2, 2)),
+                            tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+                            tf.keras.layers.Flatten(),
+                            tf.keras.layers.Dense(64, activation='relu'),
+                            tf.keras.layers.Dense(4, activation='softmax')
+                        ])
                         model.load_weights(path)
                     except Exception as e3:
                         print(f"Third attempt failed: {str(e3)}")
-                        raise Exception("All model loading attempts failed")
+                        try:
+                            # Fourth attempt: Try loading with a different model architecture
+                            model = tf.keras.Sequential([
+                                tf.keras.layers.Conv2D(16, (3, 3), activation='relu', input_shape=(224, 224, 3)),
+                                tf.keras.layers.MaxPooling2D((2, 2)),
+                                tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
+                                tf.keras.layers.MaxPooling2D((2, 2)),
+                                tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
+                                tf.keras.layers.MaxPooling2D((2, 2)),
+                                tf.keras.layers.Flatten(),
+                                tf.keras.layers.Dense(32, activation='relu'),
+                                tf.keras.layers.Dense(4, activation='softmax')
+                            ])
+                            model.load_weights(path)
+                        except Exception as e4:
+                            print(f"Fourth attempt failed: {str(e4)}")
+                            raise Exception("All model loading attempts failed")
             
             CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
             print("Model loaded successfully!")
