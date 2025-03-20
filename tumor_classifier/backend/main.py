@@ -47,31 +47,26 @@ try:
         if os.path.exists(path):
             print(f"Found model at: {path}")
             try:
-                # Create a model architecture with 10 layers to match the saved weights
-                model = tf.keras.Sequential([
-                    # Input layer
-                    tf.keras.layers.Input(shape=(224, 224, 3)),
-                    
-                    # First Conv block
-                    tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
-                    tf.keras.layers.MaxPooling2D((2, 2)),
-                    
-                    # Second Conv block
-                    tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-                    tf.keras.layers.MaxPooling2D((2, 2)),
-                    
-                    # Third Conv block
-                    tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-                    tf.keras.layers.MaxPooling2D((2, 2)),
-                    
-                    # Flatten and Dense layers
-                    tf.keras.layers.Flatten(),
-                    tf.keras.layers.Dense(64, activation='relu'),
-                    tf.keras.layers.Dense(4, activation='softmax')
-                ])
+                # Try loading the model directly with custom_objects
+                custom_objects = {
+                    'InputLayer': tf.keras.layers.InputLayer,
+                    'Conv2D': tf.keras.layers.Conv2D,
+                    'MaxPooling2D': tf.keras.layers.MaxPooling2D,
+                    'Flatten': tf.keras.layers.Flatten,
+                    'Dense': tf.keras.layers.Dense,
+                    'Dropout': tf.keras.layers.Dropout,
+                    'GlobalAveragePooling2D': tf.keras.layers.GlobalAveragePooling2D,
+                    'GlobalAveragePooling3D': tf.keras.layers.GlobalAveragePooling3D,
+                    'Concatenate': tf.keras.layers.Concatenate,
+                    'MultiHeadAttention': tf.keras.layers.MultiHeadAttention,
+                    'LayerNormalization': tf.keras.layers.LayerNormalization,
+                    'Add': tf.keras.layers.Add,
+                    'Reshape': tf.keras.layers.Reshape,
+                    'Conv3D': tf.keras.layers.Conv3D
+                }
                 
-                # Load the weights
-                model.load_weights(path)
+                # Try loading with compile=False first
+                model = tf.keras.models.load_model(path, custom_objects=custom_objects, compile=False)
                 CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
                 print("Model loaded successfully!")
                 model_loaded = True
@@ -80,6 +75,8 @@ try:
                 print(f"Error loading model: {str(e)}")
                 print(f"Error type: {type(e)}")
                 print(f"TensorFlow version: {tf.__version__}")
+                print(f"Model path: {path}")
+                print(f"Model file size: {os.path.getsize(path)} bytes")
                 raise Exception("Failed to load model weights")
     
     if not model_loaded:
