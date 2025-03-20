@@ -72,7 +72,7 @@ def download_file_from_google_drive(file_id, destination):
             quiet=False,
             fuzzy=True,
             use_cookies=False,
-            verify=False
+            verify=True  # Enable SSL verification
         )
         
         if not success:
@@ -83,7 +83,7 @@ def download_file_from_google_drive(file_id, destination):
             url = f"https://drive.google.com/uc?export=download&id={file_id}"
             
             # First request to get the cookie
-            response = session.get(url)
+            response = session.get(url, verify=True)  # Enable SSL verification
             
             # Get the token from the cookie
             token = None
@@ -97,7 +97,7 @@ def download_file_from_google_drive(file_id, destination):
                 url = f"{url}&confirm={token}"
             
             # Download the file
-            response = session.get(url, stream=True)
+            response = session.get(url, stream=True, verify=True)  # Enable SSL verification
             
             if response.status_code != 200:
                 print(f"Error: Received status code {response.status_code}")
@@ -173,7 +173,10 @@ try:
             'Model': tf.keras.Model,
             'Sequential': tf.keras.Sequential,
             'ReLU': tf.keras.layers.ReLU,
-            'BatchNormalization': tf.keras.layers.BatchNormalization
+            'BatchNormalization': tf.keras.layers.BatchNormalization,
+            'input_layer': tf.keras.layers.InputLayer,
+            'input_1': tf.keras.layers.InputLayer,
+            'input': tf.keras.layers.InputLayer
         },
         compile=False
     )
