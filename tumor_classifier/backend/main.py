@@ -61,29 +61,29 @@ def download_file_from_google_drive(file_id, destination):
     print(f"Attempting to download model from Google Drive (ID: {file_id})...")
     
     try:
-        # First try with direct download URL
-        url = f"https://drive.google.com/uc?export=download&id={file_id}"
-        print(f"Attempting direct download from: {url}")
+        # First try with gdown
+        print("Attempting download with gdown...")
+        success = gdown.download(
+            url=f"https://drive.google.com/uc?id={file_id}",
+            output=destination,
+            quiet=False,
+            fuzzy=True,
+            use_cookies=True
+        )
         
-        response = requests.get(url, stream=True)
-        
-        if response.status_code != 200:
-            print(f"Direct download failed with status code {response.status_code}")
-            print("Trying alternative method...")
+        if not success:
+            print("gdown download failed, trying alternative method...")
             
-            # Alternative method using gdown
-            success = gdown.download(
-                url=f"https://drive.google.com/uc?id={file_id}",
-                output=destination,
-                quiet=False,
-                fuzzy=True,
-                use_cookies=True
-            )
+            # Alternative method using direct download
+            url = f"https://drive.google.com/uc?export=download&id={file_id}"
+            print(f"Attempting direct download from: {url}")
             
-            if not success:
-                print("Both download methods failed")
+            response = requests.get(url, stream=True)
+            
+            if response.status_code != 200:
+                print(f"Direct download failed with status code {response.status_code}")
                 return False
-        else:
+                
             # Get file size from headers
             total_size = int(response.headers.get('content-length', 0))
             if total_size == 0:
@@ -118,134 +118,67 @@ def download_file_from_google_drive(file_id, destination):
             
     except Exception as e:
         print(f"Error during download: {str(e)}")
+        print(f"Error type: {type(e)}")
         if os.path.exists(destination):
             os.remove(destination)
         return False
 
-# Load model at startup
-print("Attempting to load model...")
-print(f"Current working directory: {os.getcwd()}")
-print(f"Directory contents: {os.listdir('.')}")
-
-try:
-    if not os.path.exists(MODEL_PATH) or not verify_model_file(MODEL_PATH):
-        print("Model file not found or invalid. Downloading from Google Drive...")
-        if download_file_from_google_drive(GOOGLE_DRIVE_ID, MODEL_PATH):
-            print("Model downloaded and verified successfully")
-        else:
-            raise Exception("Failed to download and verify model")
+def load_model():
+    """Load the model from file or download if needed."""
+    print(f"Current working directory: {os.getcwd()}")
+    print(f"Directory contents: {os.listdir('.')}")
     
-    print(f"TensorFlow version: {tf.__version__}")
-    print(f"Model path: {MODEL_PATH}")
-    print(f"File exists: {os.path.exists(MODEL_PATH)}")
-    if os.path.exists(MODEL_PATH):
-        print(f"File size: {os.path.getsize(MODEL_PATH) / (1024*1024):.2f} MB")
-    
-    # Load the model with custom objects
+    # First try to load the model directly
     try:
-        # Define the hybrid model architecture
-        def create_hybrid_model():
-            print("Creating hybrid model architecture...")
-            try:
-                # First branch (CNN)
-                cnn_branch = tf.keras.Sequential([
-                    tf.keras.layers.Input(shape=(224, 224, 3)),
-                    tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
-                    tf.keras.layers.MaxPooling2D((2, 2)),
-                    tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-                    tf.keras.layers.MaxPooling2D((2, 2)),
-                    tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-                    tf.keras.layers.Flatten(),
-                    tf.keras.layers.Dense(64, activation='relu'),
-                    tf.keras.layers.Dropout(0.5)
-                ])
-                
-                # Second branch (DenseNet-like)
-                dense_branch = tf.keras.Sequential([
-                    tf.keras.layers.Input(shape=(224, 224, 3)),
-                    tf.keras.layers.Conv2D(64, (7, 7), strides=(2, 2), padding='same'),
-                    tf.keras.layers.BatchNormalization(),
-                    tf.keras.layers.ReLU(),
-                    tf.keras.layers.MaxPooling2D((3, 3), strides=(2, 2), padding='same'),
-                    tf.keras.layers.Conv2D(128, (3, 3), padding='same'),
-                    tf.keras.layers.BatchNormalization(),
-                    tf.keras.layers.ReLU(),
-                    tf.keras.layers.Conv2D(128, (3, 3), padding='same'),
-                    tf.keras.layers.BatchNormalization(),
-                    tf.keras.layers.ReLU(),
-                    tf.keras.layers.MaxPooling2D((2, 2)),
-                    tf.keras.layers.Flatten(),
-                    tf.keras.layers.Dense(128, activation='relu'),
-                    tf.keras.layers.Dropout(0.5)
-                ])
-                
-                # Combine branches
-                input_layer = tf.keras.layers.Input(shape=(224, 224, 3))
-                cnn_output = cnn_branch(input_layer)
-                dense_output = dense_branch(input_layer)
-                
-                # Concatenate the outputs
-                combined = tf.keras.layers.Concatenate()([cnn_output, dense_output])
-                
-                # Final layers
-                x = tf.keras.layers.Dense(128, activation='relu')(combined)
-                x = tf.keras.layers.Dropout(0.5)(x)
-                output = tf.keras.layers.Dense(4, activation='softmax')(x)
-                
-                # Create the model
-                model = tf.keras.Model(inputs=input_layer, outputs=output)
-                print("Hybrid model architecture created successfully")
-                return model
-            except Exception as e:
-                print(f"Error creating model architecture: {str(e)}")
-                raise
-        
-        # Create and load the model
         print(f"Attempting to load model from: {MODEL_PATH}")
-        if not os.path.exists(MODEL_PATH):
-            print(f"Error: Model file not found at {MODEL_PATH}")
-            raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
-        
-        print(f"Model file size: {os.path.getsize(MODEL_PATH)} bytes")
-        model = create_hybrid_model()
-        
-        try:
-            print("Loading model weights...")
-            # First try loading as a complete model
+        if os.path.exists(MODEL_PATH):
+            print(f"Model file exists. Size: {os.path.getsize(MODEL_PATH) / (1024*1024):.2f} MB")
             try:
                 model = tf.keras.models.load_model(MODEL_PATH, compile=False)
-                print("Model loaded as complete model")
+                print("Model loaded successfully!")
+                return model
             except Exception as e:
-                print(f"Failed to load as complete model: {str(e)}")
-                print("Attempting to load as weights...")
-                # If that fails, try loading just the weights
-                model = create_hybrid_model()
-                model.load_weights(MODEL_PATH)
-                print("Model weights loaded successfully")
-            
-            CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
-            print("Hybrid model loaded successfully!")
-        except Exception as e:
-            print(f"Error loading weights: {str(e)}")
-            print(f"Error type: {type(e)}")
-            raise
+                print(f"Error loading model directly: {str(e)}")
+        else:
+            print("Model file not found locally")
     except Exception as e:
-        print(f"Error loading model: {str(e)}")
-        print(f"Error type: {type(e)}")
-        print(f"TensorFlow version: {tf.__version__}")
-        print(f"Model path: {MODEL_PATH}")
-        if os.path.exists(MODEL_PATH):
-            print(f"Model file size: {os.path.getsize(MODEL_PATH)} bytes")
-        raise Exception("Failed to load model weights")
+        print(f"Error in initial load attempt: {str(e)}")
     
-except Exception as e:
-    print(f"Error loading model: {str(e)}")
-    print(f"Error type: {type(e)}")
-    print(f"TensorFlow version: {tf.__version__}")
-    print(f"Model path: {MODEL_PATH}")
-    if os.path.exists(MODEL_PATH):
-        print(f"Model file size: {os.path.getsize(MODEL_PATH)} bytes")
-    raise Exception("Failed to load model weights")
+    # If direct load fails, try downloading from Google Drive
+    print("Attempting to download model from Google Drive...")
+    try:
+        # Download using gdown
+        url = f"https://drive.google.com/uc?id={GOOGLE_DRIVE_ID}"
+        print(f"Downloading from: {url}")
+        
+        success = gdown.download(url, MODEL_PATH, quiet=False)
+        if not success:
+            print("gdown download failed")
+            return None
+            
+        print(f"Download completed. File size: {os.path.getsize(MODEL_PATH) / (1024*1024):.2f} MB")
+        
+        # Try loading the downloaded model
+        model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+        print("Model loaded successfully after download!")
+        return model
+        
+    except Exception as e:
+        print(f"Error during download/load: {str(e)}")
+        print(f"Error type: {type(e)}")
+        if os.path.exists(MODEL_PATH):
+            os.remove(MODEL_PATH)
+        return None
+
+# Load model at startup
+print("Starting model loading process...")
+model = load_model()
+
+if model is None:
+    raise Exception("Failed to load model")
+
+CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
+print("Model initialization complete!")
 
 def preprocess_image(image):
     # Convert image to RGB mode
