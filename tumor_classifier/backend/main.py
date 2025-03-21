@@ -37,7 +37,6 @@ REVERSE_CLASS_INDICES = {v: k for k, v in CLASS_INDICES.items()}
 def verify_model_file(file_path):
     """Verify that the model file is valid."""
     try:
-        # Check if file exists and has content
         if not os.path.exists(file_path):
             print(f"Model file not found at: {file_path}")
             return False
@@ -47,14 +46,63 @@ def verify_model_file(file_path):
             print(f"Model file is empty: {file_path}")
             return False
         
-        # Try to load the model to verify it's valid
         try:
-            tf.keras.models.load_model(file_path, compile=False)
+            # Try loading with custom_objects to handle compatibility
+            custom_objects = {
+                'InputLayer': tf.keras.layers.InputLayer,
+                'Conv2D': tf.keras.layers.Conv2D,
+                'MaxPooling2D': tf.keras.layers.MaxPooling2D,
+                'Flatten': tf.keras.layers.Flatten,
+                'Dense': tf.keras.layers.Dense,
+                'Dropout': tf.keras.layers.Dropout
+            }
+            
+            model = tf.keras.models.load_model(
+                file_path,
+                custom_objects=custom_objects,
+                compile=False
+            )
+            
+            # Verify model structure
+            if len(model.layers) == 0:
+                print("Model has no layers")
+                return False
+                
+            # Verify input shape
+            if model.input_shape != (None, 224, 224, 3):
+                print(f"Unexpected input shape: {model.input_shape}")
+                return False
+                
             print(f"Model file verified successfully. Size: {file_size / (1024*1024):.2f} MB")
+            print(f"Model summary:")
+            model.summary()
             return True
+            
         except Exception as e:
             print(f"Error verifying model file: {str(e)}")
-            return False
+            print(f"Attempting alternative loading method...")
+            
+            try:
+                # Try reconstructing the model architecture
+                inputs = tf.keras.Input(shape=(224, 224, 3))
+                x = tf.keras.layers.Conv2D(32, (3, 3), activation='relu')(inputs)
+                x = tf.keras.layers.MaxPooling2D((2, 2))(x)
+                x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu')(x)
+                x = tf.keras.layers.MaxPooling2D((2, 2))(x)
+                x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu')(x)
+                x = tf.keras.layers.Flatten()(x)
+                x = tf.keras.layers.Dense(64, activation='relu')(x)
+                outputs = tf.keras.layers.Dense(4, activation='softmax')(x)
+                
+                model = tf.keras.Model(inputs=inputs, outputs=outputs)
+                model.load_weights(file_path)
+                print("Successfully loaded model weights")
+                model.summary()
+                return True
+                
+            except Exception as e2:
+                print(f"Error in alternative loading method: {str(e2)}")
+                return False
             
     except Exception as e:
         print(f"Error checking model file: {str(e)}")
@@ -105,7 +153,33 @@ def load_model():
         if os.path.exists(MODEL_PATH):
             print(f"Model file exists. Size: {os.path.getsize(MODEL_PATH) / (1024*1024):.2f} MB")
             if verify_model_file(MODEL_PATH):
-                model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+                # Use the same loading method that worked in verify_model_file
+                custom_objects = {
+                    'InputLayer': tf.keras.layers.InputLayer,
+                    'Conv2D': tf.keras.layers.Conv2D,
+                    'MaxPooling2D': tf.keras.layers.MaxPooling2D,
+                    'Flatten': tf.keras.layers.Flatten,
+                    'Dense': tf.keras.layers.Dense,
+                    'Dropout': tf.keras.layers.Dropout
+                }
+                
+                try:
+                    model = tf.keras.models.load_model(MODEL_PATH, custom_objects=custom_objects, compile=False)
+                except:
+                    # If direct loading fails, try the alternative method
+                    inputs = tf.keras.Input(shape=(224, 224, 3))
+                    x = tf.keras.layers.Conv2D(32, (3, 3), activation='relu')(inputs)
+                    x = tf.keras.layers.MaxPooling2D((2, 2))(x)
+                    x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu')(x)
+                    x = tf.keras.layers.MaxPooling2D((2, 2))(x)
+                    x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu')(x)
+                    x = tf.keras.layers.Flatten()(x)
+                    x = tf.keras.layers.Dense(64, activation='relu')(x)
+                    outputs = tf.keras.layers.Dense(4, activation='softmax')(x)
+                    
+                    model = tf.keras.Model(inputs=inputs, outputs=outputs)
+                    model.load_weights(MODEL_PATH)
+                
                 print("Model loaded successfully!")
                 return model
             else:
@@ -129,7 +203,33 @@ def load_model():
             
         # Verify and load the downloaded model
         if verify_model_file(MODEL_PATH):
-            model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+            # Use the same loading method that worked in verify_model_file
+            custom_objects = {
+                'InputLayer': tf.keras.layers.InputLayer,
+                'Conv2D': tf.keras.layers.Conv2D,
+                'MaxPooling2D': tf.keras.layers.MaxPooling2D,
+                'Flatten': tf.keras.layers.Flatten,
+                'Dense': tf.keras.layers.Dense,
+                'Dropout': tf.keras.layers.Dropout
+            }
+            
+            try:
+                model = tf.keras.models.load_model(MODEL_PATH, custom_objects=custom_objects, compile=False)
+            except:
+                # If direct loading fails, try the alternative method
+                inputs = tf.keras.Input(shape=(224, 224, 3))
+                x = tf.keras.layers.Conv2D(32, (3, 3), activation='relu')(inputs)
+                x = tf.keras.layers.MaxPooling2D((2, 2))(x)
+                x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu')(x)
+                x = tf.keras.layers.MaxPooling2D((2, 2))(x)
+                x = tf.keras.layers.Conv2D(64, (3, 3), activation='relu')(x)
+                x = tf.keras.layers.Flatten()(x)
+                x = tf.keras.layers.Dense(64, activation='relu')(x)
+                outputs = tf.keras.layers.Dense(4, activation='softmax')(x)
+                
+                model = tf.keras.Model(inputs=inputs, outputs=outputs)
+                model.load_weights(MODEL_PATH)
+            
             print("Model loaded successfully after download!")
             return model
         else:
