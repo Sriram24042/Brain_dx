@@ -143,21 +143,47 @@ try:
     
     # Load the model with custom objects
     try:
-        # Define the model architecture first
-        model = tf.keras.Sequential([
-            tf.keras.layers.Input(shape=(224, 224, 3)),
-            tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
-            tf.keras.layers.MaxPooling2D((2, 2)),
-            tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-            tf.keras.layers.MaxPooling2D((2, 2)),
-            tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-            tf.keras.layers.Flatten(),
-            tf.keras.layers.Dense(64, activation='relu'),
-            tf.keras.layers.Dense(4, activation='softmax')
-        ])
+        # First try loading as a complete model
+        try:
+            model = tf.keras.models.load_model(MODEL_PATH, 
+                custom_objects={
+                    'Dense': tf.keras.layers.Dense,
+                    'Conv2D': tf.keras.layers.Conv2D,
+                    'MaxPooling2D': tf.keras.layers.MaxPooling2D,
+                    'Flatten': tf.keras.layers.Flatten,
+                    'Dropout': tf.keras.layers.Dropout,
+                    'InputLayer': tf.keras.layers.InputLayer,
+                    'Input': tf.keras.layers.Input,
+                    'Model': tf.keras.Model,
+                    'Sequential': tf.keras.Sequential,
+                    'ReLU': tf.keras.layers.ReLU,
+                    'BatchNormalization': tf.keras.layers.BatchNormalization,
+                    'input_layer': tf.keras.layers.InputLayer,
+                    'input_1': tf.keras.layers.InputLayer,
+                    'input': tf.keras.layers.InputLayer
+                },
+                compile=False
+            )
+            print("Model loaded as complete model")
+        except Exception as e:
+            print(f"Failed to load as complete model: {str(e)}")
+            print("Attempting to load as weights...")
+            
+            # If that fails, try loading as weights
+            model = tf.keras.Sequential([
+                tf.keras.layers.Input(shape=(224, 224, 3)),
+                tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
+                tf.keras.layers.MaxPooling2D((2, 2)),
+                tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+                tf.keras.layers.MaxPooling2D((2, 2)),
+                tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+                tf.keras.layers.Flatten(),
+                tf.keras.layers.Dense(64, activation='relu'),
+                tf.keras.layers.Dense(4, activation='softmax')
+            ])
+            model.load_weights(MODEL_PATH)
+            print("Model loaded as weights")
         
-        # Load the weights
-        model.load_weights(MODEL_PATH)
         CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
         print("Model loaded successfully!")
     except Exception as e:
