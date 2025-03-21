@@ -13,6 +13,7 @@ import requests
 from tqdm import tqdm
 import uvicorn
 import hashlib
+import sys
 
 app = FastAPI(title="BrainDx API")
 
@@ -26,7 +27,7 @@ app.add_middleware(
 )
 
 # Model configuration
-MODEL_PATH = "brain_tumor_classification_model.h5"  # Match the local filename
+MODEL_PATH = os.path.join(os.path.dirname(__file__), "brain_tumor_classification_model.h5")
 GOOGLE_DRIVE_ID = "1HVVWWxcDgCWjvZDXoNG7s0E8PsTyE8g_"
 
 # Class indices mapping (matching local implementation)
@@ -64,6 +65,9 @@ def download_file_from_google_drive(file_id, destination):
     print(f"Attempting to download model from Google Drive (ID: {file_id})...")
     
     try:
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(destination), exist_ok=True)
+        
         # Use gdown with specific parameters for better reliability
         success = gdown.download(
             url=f"https://drive.google.com/uc?id={file_id}",
@@ -92,6 +96,8 @@ def load_model():
     """Load the model from file or download if needed."""
     print(f"Current working directory: {os.getcwd()}")
     print(f"Directory contents: {os.listdir('.')}")
+    print(f"Model path: {MODEL_PATH}")
+    print(f"Model directory exists: {os.path.exists(os.path.dirname(MODEL_PATH))}")
     
     # First try to load the model directly
     try:
@@ -104,10 +110,12 @@ def load_model():
                 return model
             except Exception as e:
                 print(f"Error loading model directly: {str(e)}")
+                print(f"Error type: {type(e)}")
         else:
             print("Model file not found locally")
     except Exception as e:
         print(f"Error in initial load attempt: {str(e)}")
+        print(f"Error type: {type(e)}")
     
     # If direct load fails, try downloading from Google Drive
     print("Attempting to download model from Google Drive...")
@@ -132,6 +140,8 @@ def load_model():
 # Load model at startup
 print("Starting model loading process...")
 print(f"TensorFlow version: {tf.__version__}")
+print(f"Python version: {sys.version}")
+print(f"Current working directory: {os.getcwd()}")
 model = load_model()
 
 if model is None:
