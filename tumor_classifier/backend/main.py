@@ -161,27 +161,32 @@ try:
         print(f"File size: {os.path.getsize(MODEL_PATH) / (1024*1024):.2f} MB")
     
     # Load the model with custom objects
-    model = tf.keras.models.load_model(MODEL_PATH, 
-        custom_objects={
-            'Dense': tf.keras.layers.Dense,
-            'Conv2D': tf.keras.layers.Conv2D,
-            'MaxPooling2D': tf.keras.layers.MaxPooling2D,
-            'Flatten': tf.keras.layers.Flatten,
-            'Dropout': tf.keras.layers.Dropout,
-            'InputLayer': tf.keras.layers.InputLayer,
-            'Input': tf.keras.layers.Input,
-            'Model': tf.keras.Model,
-            'Sequential': tf.keras.Sequential,
-            'ReLU': tf.keras.layers.ReLU,
-            'BatchNormalization': tf.keras.layers.BatchNormalization,
-            'input_layer': tf.keras.layers.InputLayer,
-            'input_1': tf.keras.layers.InputLayer,
-            'input': tf.keras.layers.InputLayer
-        },
-        compile=False
-    )
-    CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
-    print("Model loaded successfully!")
+    try:
+        # Define the model architecture first
+        model = tf.keras.Sequential([
+            tf.keras.layers.Input(shape=(224, 224, 3)),
+            tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
+            tf.keras.layers.MaxPooling2D((2, 2)),
+            tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+            tf.keras.layers.MaxPooling2D((2, 2)),
+            tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+            tf.keras.layers.Flatten(),
+            tf.keras.layers.Dense(64, activation='relu'),
+            tf.keras.layers.Dense(4, activation='softmax')
+        ])
+        
+        # Load the weights
+        model.load_weights(MODEL_PATH)
+        CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
+        print("Model loaded successfully!")
+    except Exception as e:
+        print(f"Error loading model: {str(e)}")
+        print(f"Error type: {type(e)}")
+        print(f"TensorFlow version: {tf.__version__}")
+        print(f"Model path: {MODEL_PATH}")
+        if os.path.exists(MODEL_PATH):
+            print(f"Model file size: {os.path.getsize(MODEL_PATH)} bytes")
+        raise Exception("Failed to load model weights")
     
 except Exception as e:
     print(f"Error loading model: {str(e)}")
