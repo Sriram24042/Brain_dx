@@ -146,55 +146,59 @@ try:
         # Define the hybrid model architecture
         def create_hybrid_model():
             print("Creating hybrid model architecture...")
-            # First branch (CNN)
-            cnn_branch = tf.keras.Sequential([
-                tf.keras.layers.Input(shape=(224, 224, 3)),
-                tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
-                tf.keras.layers.MaxPooling2D((2, 2)),
-                tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-                tf.keras.layers.MaxPooling2D((2, 2)),
-                tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
-                tf.keras.layers.Flatten(),
-                tf.keras.layers.Dense(64, activation='relu'),
-                tf.keras.layers.Dropout(0.5)
-            ])
-            
-            # Second branch (DenseNet-like)
-            dense_branch = tf.keras.Sequential([
-                tf.keras.layers.Input(shape=(224, 224, 3)),
-                tf.keras.layers.Conv2D(64, (7, 7), strides=(2, 2), padding='same'),
-                tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.ReLU(),
-                tf.keras.layers.MaxPooling2D((3, 3), strides=(2, 2), padding='same'),
-                tf.keras.layers.Conv2D(128, (3, 3), padding='same'),
-                tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.ReLU(),
-                tf.keras.layers.Conv2D(128, (3, 3), padding='same'),
-                tf.keras.layers.BatchNormalization(),
-                tf.keras.layers.ReLU(),
-                tf.keras.layers.MaxPooling2D((2, 2)),
-                tf.keras.layers.Flatten(),
-                tf.keras.layers.Dense(128, activation='relu'),
-                tf.keras.layers.Dropout(0.5)
-            ])
-            
-            # Combine branches
-            input_layer = tf.keras.layers.Input(shape=(224, 224, 3))
-            cnn_output = cnn_branch(input_layer)
-            dense_output = dense_branch(input_layer)
-            
-            # Concatenate the outputs
-            combined = tf.keras.layers.Concatenate()([cnn_output, dense_output])
-            
-            # Final layers
-            x = tf.keras.layers.Dense(128, activation='relu')(combined)
-            x = tf.keras.layers.Dropout(0.5)(x)
-            output = tf.keras.layers.Dense(4, activation='softmax')(x)
-            
-            # Create the model
-            model = tf.keras.Model(inputs=input_layer, outputs=output)
-            print("Hybrid model architecture created successfully")
-            return model
+            try:
+                # First branch (CNN)
+                cnn_branch = tf.keras.Sequential([
+                    tf.keras.layers.Input(shape=(224, 224, 3)),
+                    tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
+                    tf.keras.layers.MaxPooling2D((2, 2)),
+                    tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+                    tf.keras.layers.MaxPooling2D((2, 2)),
+                    tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+                    tf.keras.layers.Flatten(),
+                    tf.keras.layers.Dense(64, activation='relu'),
+                    tf.keras.layers.Dropout(0.5)
+                ])
+                
+                # Second branch (DenseNet-like)
+                dense_branch = tf.keras.Sequential([
+                    tf.keras.layers.Input(shape=(224, 224, 3)),
+                    tf.keras.layers.Conv2D(64, (7, 7), strides=(2, 2), padding='same'),
+                    tf.keras.layers.BatchNormalization(),
+                    tf.keras.layers.ReLU(),
+                    tf.keras.layers.MaxPooling2D((3, 3), strides=(2, 2), padding='same'),
+                    tf.keras.layers.Conv2D(128, (3, 3), padding='same'),
+                    tf.keras.layers.BatchNormalization(),
+                    tf.keras.layers.ReLU(),
+                    tf.keras.layers.Conv2D(128, (3, 3), padding='same'),
+                    tf.keras.layers.BatchNormalization(),
+                    tf.keras.layers.ReLU(),
+                    tf.keras.layers.MaxPooling2D((2, 2)),
+                    tf.keras.layers.Flatten(),
+                    tf.keras.layers.Dense(128, activation='relu'),
+                    tf.keras.layers.Dropout(0.5)
+                ])
+                
+                # Combine branches
+                input_layer = tf.keras.layers.Input(shape=(224, 224, 3))
+                cnn_output = cnn_branch(input_layer)
+                dense_output = dense_branch(input_layer)
+                
+                # Concatenate the outputs
+                combined = tf.keras.layers.Concatenate()([cnn_output, dense_output])
+                
+                # Final layers
+                x = tf.keras.layers.Dense(128, activation='relu')(combined)
+                x = tf.keras.layers.Dropout(0.5)(x)
+                output = tf.keras.layers.Dense(4, activation='softmax')(x)
+                
+                # Create the model
+                model = tf.keras.Model(inputs=input_layer, outputs=output)
+                print("Hybrid model architecture created successfully")
+                return model
+            except Exception as e:
+                print(f"Error creating model architecture: {str(e)}")
+                raise
         
         # Create and load the model
         print(f"Attempting to load model from: {MODEL_PATH}")
@@ -207,15 +211,24 @@ try:
         
         try:
             print("Loading model weights...")
-            model.load_weights(MODEL_PATH)
-            print("Model weights loaded successfully")
+            # First try loading as a complete model
+            try:
+                model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+                print("Model loaded as complete model")
+            except Exception as e:
+                print(f"Failed to load as complete model: {str(e)}")
+                print("Attempting to load as weights...")
+                # If that fails, try loading just the weights
+                model = create_hybrid_model()
+                model.load_weights(MODEL_PATH)
+                print("Model weights loaded successfully")
+            
+            CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
+            print("Hybrid model loaded successfully!")
         except Exception as e:
             print(f"Error loading weights: {str(e)}")
             print(f"Error type: {type(e)}")
             raise
-        
-        CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
-        print("Hybrid model loaded successfully!")
     except Exception as e:
         print(f"Error loading model: {str(e)}")
         print(f"Error type: {type(e)}")
