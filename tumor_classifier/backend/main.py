@@ -28,7 +28,7 @@ app.add_middleware(
 
 # Model configuration
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "brain_tumor_classification_model.h5")
-BACKUP_MODEL_URL = "https://huggingface.co/spaces/Sriram24042/BrainDx/resolve/main/brain_tumor_classification_model.h5"
+BACKUP_MODEL_URL = "https://huggingface.co/spaces/Sriram24824/BrainDx/resolve/main/brain_tumor_classification_model.h5"
 
 # Class indices mapping (matching local implementation)
 CLASS_INDICES = {'No Tumor': 0, 'Meningioma': 1, 'Glioma': 2, 'Pituitary Tumor': 3}
