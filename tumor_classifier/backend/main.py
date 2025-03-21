@@ -145,6 +145,7 @@ try:
     try:
         # Define the hybrid model architecture
         def create_hybrid_model():
+            print("Creating hybrid model architecture...")
             # First branch (CNN)
             cnn_branch = tf.keras.Sequential([
                 tf.keras.layers.Input(shape=(224, 224, 3)),
@@ -192,11 +193,27 @@ try:
             
             # Create the model
             model = tf.keras.Model(inputs=input_layer, outputs=output)
+            print("Hybrid model architecture created successfully")
             return model
         
         # Create and load the model
+        print(f"Attempting to load model from: {MODEL_PATH}")
+        if not os.path.exists(MODEL_PATH):
+            print(f"Error: Model file not found at {MODEL_PATH}")
+            raise FileNotFoundError(f"Model file not found at {MODEL_PATH}")
+        
+        print(f"Model file size: {os.path.getsize(MODEL_PATH)} bytes")
         model = create_hybrid_model()
-        model.load_weights(MODEL_PATH)
+        
+        try:
+            print("Loading model weights...")
+            model.load_weights(MODEL_PATH)
+            print("Model weights loaded successfully")
+        except Exception as e:
+            print(f"Error loading weights: {str(e)}")
+            print(f"Error type: {type(e)}")
+            raise
+        
         CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
         print("Hybrid model loaded successfully!")
     except Exception as e:
