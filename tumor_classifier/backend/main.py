@@ -64,60 +64,22 @@ def download_file_from_google_drive(file_id, destination):
     print(f"Attempting to download model from Google Drive (ID: {file_id})...")
     
     try:
-        # First try with gdown
-        print("Attempting download with gdown...")
+        # Use gdown with specific parameters for better reliability
         success = gdown.download(
             url=f"https://drive.google.com/uc?id={file_id}",
             output=destination,
             quiet=False,
             fuzzy=True,
-            use_cookies=True
+            use_cookies=True,
+            verify=False  # Skip SSL verification if needed
         )
         
         if not success:
-            print("gdown download failed, trying alternative method...")
-            
-            # Alternative method using direct download
-            url = f"https://drive.google.com/uc?export=download&id={file_id}"
-            print(f"Attempting direct download from: {url}")
-            
-            response = requests.get(url, stream=True)
-            
-            if response.status_code != 200:
-                print(f"Direct download failed with status code {response.status_code}")
-                return False
-                
-            # Get file size from headers
-            total_size = int(response.headers.get('content-length', 0))
-            if total_size == 0:
-                print("Error: Could not determine file size")
-                return False
-                
-            print(f"Total file size: {total_size / (1024*1024):.2f} MB")
-            
-            # Download with progress bar
-            with open(destination, 'wb') as f, tqdm(
-                desc="Downloading",
-                total=total_size,
-                unit='iB',
-                unit_scale=True,
-                unit_divisor=1024,
-            ) as pbar:
-                for data in response.iter_content(chunk_size=8192):
-                    size = f.write(data)
-                    pbar.update(size)
-        
-        print(f"Download completed. Verifying file...")
-        
-        # Verify the downloaded file
-        if verify_model_file(destination):
-            print(f"File verified and saved to: {destination}")
-            return True
-        else:
-            print("File verification failed. Download was unsuccessful.")
-            if os.path.exists(destination):
-                os.remove(destination)
+            print("gdown download failed")
             return False
+            
+        print(f"Download completed. File size: {os.path.getsize(destination) / (1024*1024):.2f} MB")
+        return True
             
     except Exception as e:
         print(f"Error during download: {str(e)}")
@@ -150,17 +112,11 @@ def load_model():
     # If direct load fails, try downloading from Google Drive
     print("Attempting to download model from Google Drive...")
     try:
-        # Download using gdown
-        url = f"https://drive.google.com/uc?id={GOOGLE_DRIVE_ID}"
-        print(f"Downloading from: {url}")
-        
-        success = gdown.download(url, MODEL_PATH, quiet=False)
-        if not success:
-            print("gdown download failed")
+        # Download the model
+        if not download_file_from_google_drive(GOOGLE_DRIVE_ID, MODEL_PATH):
+            print("Failed to download model from Google Drive")
             return None
             
-        print(f"Download completed. File size: {os.path.getsize(MODEL_PATH) / (1024*1024):.2f} MB")
-        
         # Try loading the downloaded model
         model = tf.keras.models.load_model(MODEL_PATH, compile=False)
         print("Model loaded successfully after download!")
@@ -175,6 +131,7 @@ def load_model():
 
 # Load model at startup
 print("Starting model loading process...")
+print(f"TensorFlow version: {tf.__version__}")
 model = load_model()
 
 if model is None:
