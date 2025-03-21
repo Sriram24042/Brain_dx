@@ -8,12 +8,12 @@ import io
 import os
 import tempfile
 import shutil
-import gdown
 import requests
 from tqdm import tqdm
 import uvicorn
 import hashlib
 import sys
+import base64
 
 app = FastAPI(title="BrainDx API")
 
@@ -28,7 +28,7 @@ app.add_middleware(
 
 # Model configuration
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "brain_tumor_classification_model.h5")
-GOOGLE_DRIVE_ID = "1HVVWWxcDgCWjvZDXoNG7s0E8PsTyE8g_"
+BACKUP_MODEL_URL = "https://huggingface.co/spaces/Sriram24042/BrainDx/resolve/main/brain_tumor_classification_model.h5"
 
 # Class indices mapping (matching local implementation)
 CLASS_INDICES = {'No Tumor': 0, 'Meningioma': 1, 'Glioma': 2, 'Pituitary Tumor': 3}
@@ -60,31 +60,31 @@ def verify_model_file(file_path):
         print(f"Error checking model file: {str(e)}")
         return False
 
-def download_file_from_google_drive(file_id, destination):
-    """Download a file from Google Drive using gdown."""
-    print(f"Attempting to download model from Google Drive (ID: {file_id})...")
+def download_file_with_progress(url, destination):
+    """Download a file with progress bar and verification."""
+    print(f"Downloading model from: {url}")
     
     try:
-        # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(destination), exist_ok=True)
+        response = requests.get(url, stream=True)
+        response.raise_for_status()
         
-        # Use gdown with specific parameters for better reliability
-        success = gdown.download(
-            url=f"https://drive.google.com/uc?id={file_id}",
-            output=destination,
-            quiet=False,
-            fuzzy=True,
-            use_cookies=True,
-            verify=False  # Skip SSL verification if needed
-        )
+        total_size = int(response.headers.get('content-length', 0))
+        block_size = 8192
         
-        if not success:
-            print("gdown download failed")
-            return False
-            
+        with open(destination, 'wb') as f, tqdm(
+            desc="Downloading",
+            total=total_size,
+            unit='iB',
+            unit_scale=True,
+            unit_divisor=1024,
+        ) as pbar:
+            for data in response.iter_content(block_size):
+                size = f.write(data)
+                pbar.update(size)
+        
         print(f"Download completed. File size: {os.path.getsize(destination) / (1024*1024):.2f} MB")
         return True
-            
+        
     except Exception as e:
         print(f"Error during download: {str(e)}")
         print(f"Error type: {type(e)}")
@@ -104,31 +104,37 @@ def load_model():
         print(f"Attempting to load model from: {MODEL_PATH}")
         if os.path.exists(MODEL_PATH):
             print(f"Model file exists. Size: {os.path.getsize(MODEL_PATH) / (1024*1024):.2f} MB")
-            try:
+            if verify_model_file(MODEL_PATH):
                 model = tf.keras.models.load_model(MODEL_PATH, compile=False)
                 print("Model loaded successfully!")
                 return model
-            except Exception as e:
-                print(f"Error loading model directly: {str(e)}")
-                print(f"Error type: {type(e)}")
+            else:
+                print("Model file verification failed")
         else:
             print("Model file not found locally")
     except Exception as e:
         print(f"Error in initial load attempt: {str(e)}")
         print(f"Error type: {type(e)}")
     
-    # If direct load fails, try downloading from Google Drive
-    print("Attempting to download model from Google Drive...")
+    # If direct load fails, try downloading from backup URL
+    print("Attempting to download model from backup URL...")
     try:
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+        
         # Download the model
-        if not download_file_from_google_drive(GOOGLE_DRIVE_ID, MODEL_PATH):
-            print("Failed to download model from Google Drive")
+        if not download_file_with_progress(BACKUP_MODEL_URL, MODEL_PATH):
+            print("Failed to download model from backup URL")
             return None
             
-        # Try loading the downloaded model
-        model = tf.keras.models.load_model(MODEL_PATH, compile=False)
-        print("Model loaded successfully after download!")
-        return model
+        # Verify and load the downloaded model
+        if verify_model_file(MODEL_PATH):
+            model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+            print("Model loaded successfully after download!")
+            return model
+        else:
+            print("Downloaded model verification failed")
+            return None
         
     except Exception as e:
         print(f"Error during download/load: {str(e)}")
