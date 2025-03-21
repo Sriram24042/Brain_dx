@@ -26,9 +26,12 @@ app.add_middleware(
 )
 
 # Model configuration
-MODEL_PATH = "model_weights.h5"
+MODEL_PATH = "brain_tumor_classification_model.h5"  # Match the local filename
 GOOGLE_DRIVE_ID = "1HVVWWxcDgCWjvZDXoNG7s0E8PsTyE8g_"
-GOOGLE_DRIVE_URL = f"https://drive.google.com/uc?export=download&id={GOOGLE_DRIVE_ID}"
+
+# Class indices mapping (matching local implementation)
+CLASS_INDICES = {'No Tumor': 0, 'Meningioma': 1, 'Glioma': 2, 'Pituitary Tumor': 3}
+REVERSE_CLASS_INDICES = {v: k for k, v in CLASS_INDICES.items()}
 
 def verify_model_file(file_path):
     """Verify that the model file is valid."""
@@ -177,7 +180,6 @@ model = load_model()
 if model is None:
     raise Exception("Failed to load model")
 
-CLASS_NAMES = ["glioma", "meningioma", "no_tumor", "pituitary"]
 print("Model initialization complete!")
 
 def preprocess_image(image):
@@ -206,8 +208,15 @@ async def predict_tumor(file: UploadFile = File(...)):
         
         # Make prediction
         predictions = model.predict(processed_image)
-        predicted_class = CLASS_NAMES[np.argmax(predictions[0])]
+        predicted_class_index = np.argmax(predictions[0])
+        predicted_class = REVERSE_CLASS_INDICES[predicted_class_index]
         confidence = float(np.max(predictions[0]))
+        
+        # Check if the prediction is a valid brain tumor class
+        if predicted_class == 'No Tumor':
+            return JSONResponse({
+                "error": "The uploaded image is not a brain tumor MRI."
+            }, status_code=400)
         
         return JSONResponse({
             "class": predicted_class,
