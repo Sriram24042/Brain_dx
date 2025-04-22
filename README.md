@@ -4,7 +4,6 @@
   <img src="https://img.shields.io/badge/Python-3.8+-blue.svg" alt="Python Version">
   <img src="https://img.shields.io/badge/React-19.0.0-61DAFB.svg" alt="React Version">
   <img src="https://img.shields.io/badge/TensorFlow-2.x-FF6F00.svg" alt="TensorFlow Version">
-  <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License">
 </div>
 
 ## 🧠 Revolutionizing Brain Tumor Diagnosis with AI
@@ -131,17 +130,13 @@ Brain_dx/
 - **Backend**: Deployed on Render with automatic scaling
 - **Frontend**: Deployed on Vercel with global CDN
 
-## 📝 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
 ## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## 📧 Contact
 
-For questions or feedback, please open an issue on GitHub or contact [Your Contact Information].
+For questions or feedback, please open an issue on GitHub or contact me at sriram24042@gmail.com.
 
 ---
 
