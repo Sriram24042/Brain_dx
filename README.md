@@ -10,6 +10,7 @@
 
 BrainDx is a cutting-edge web application that leverages advanced deep learning to classify brain tumors from MRI scans with remarkable accuracy. By combining state-of-the-art machine learning techniques with an intuitive user interface, BrainDx aims to assist healthcare professionals in making faster, more accurate diagnostic decisions.
 
+
 ### ✨ Key Features
 
 - **Real-time Classification**: Upload MRI scans and receive instant tumor classification results
@@ -92,7 +93,7 @@ Brain_dx/
 │       ├── public/             # Static assets
 │       └── package.json        # Node.js dependencies
 ```
-
+## Note : Download The Trained Model Weights From The Google Drive Link Provided Above And Store It According To The File Structure 
 ## 🧪 How It Works
 
 1. **Image Upload**: Users upload brain MRI scans through the intuitive drag-and-drop interface
@@ -125,10 +126,6 @@ Brain_dx/
 - **Python 3.8+** for backend logic
 - **Scikit-learn** for data preprocessing
 
-## 🌐 Deployment
-
-- **Backend**: Deployed on Render with automatic scaling
-- **Frontend**: Deployed on Vercel with global CDN
 
 ## 🤝 Contributing
 
