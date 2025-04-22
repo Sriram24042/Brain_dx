@@ -19,6 +19,18 @@ BrainDx is a cutting-edge web application that leverages advanced deep learning 
 - **Secure Processing**: All image processing happens locally or in secure cloud environments
 - **Comprehensive Analysis**: Classifies between No Tumor, Meningioma, Glioma, and Pituitary Tumor
 
+## Project Preview
+- **Interface**:
+![image](https://github.com/user-attachments/assets/b34f3dba-7ff9-4c5b-b596-096327f6d632)
+
+- **After Uploading Image**:
+![image](https://github.com/user-attachments/assets/eafe1d70-439d-4221-b0c1-7ec6abd1ec73)
+
+- **After Results Shown:**:
+![image](https://github.com/user-attachments/assets/66425c5e-b1fe-40a6-9db5-04759384b3b7)
+
+
+
 ## 🚀 Getting Started
 
 ### Prerequisites
